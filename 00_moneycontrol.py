@@ -93,7 +93,7 @@ for fund in fund_families:
             'category'              : category_name,
             'category_url'          : category_url,
             'latest_nav'            : unicode( data_elems[3].string ),
-            '1yr_return'            : unicode( data_elems[4].string ),
+            '1yr_return'            : u'None' if unicode( data_elems[4].string ) == u'--' else unicode( data_elems[4].string ),
             'scheme_aum'            : scheme_aum
         }
 
