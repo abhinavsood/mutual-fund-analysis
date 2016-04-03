@@ -6,6 +6,42 @@
 from bs4 import BeautifulSoup
 import requests
 import sys
+import re
+
+
+
+'''
+Method to convert risk text to a numerical attribute
+'''
+def encode_risk(risk_text):
+    # The higher the risk, the lower the score!
+    risk = {
+        u'HIGH'              :  1,
+        u'MODERATELY HIGH'   :  2,
+        u'MODERATE'          :  3,
+        u'MODERATELY LOW'    :  4,
+        u'LOW'               :  5 
+    }
+    try:
+        return risk[ unicode( risk_text.upper() ) ]
+    except:
+        return 0
+
+
+'''
+Method to convert numerical features that appear as strings or unicode strings into numbers
+'''
+def to_numeric( text ):
+    try:
+        return float( re.sub(
+            '(Rs[ ]*\.)|[^\d|.|-]|(Rank[ ]*)',
+            '',
+            text,
+            flags = re.IGNORECASE
+        ) )
+    except:
+        return None
+
 
 # from pyspark import SparkConf, SparkContext, SQLContext
 # from pyspark.sql.types import *
@@ -204,3 +240,134 @@ for idx, scheme in enumerate(fund_schemes):
     # Print every 100th scheme to verify things are running smoothly
     if idx % 100 == 0:
         print( 'Scheme # {0}\n{1}\n\n\n'.format(idx, scheme) )
+    else:
+        print idx, ' ',
+        
+
+
+
+# Processing for ML pipeline
+for idx, scheme in enumerate( fund_schemes ):
+    ##
+    # Step 1: Convert numerical features appearing as text to numerical features
+    #         1.a: Encode risk text to a numerical representation of risk.
+    #              Highest risk gets the lowest score, lowest risk gets the highest score
+    #
+    #         1.b: Convert numbers formatted with commas or currency or rating description to just numbers
+    ##
+    
+    # Convert scheme risk text to a numerical attribute
+    fund_schemes[idx]['num_scheme_risk']            = encode_risk( scheme['scheme_risk_text'] )
+    
+    # Convert metrics to numerical features
+    fund_schemes[idx]['num_fund_family_aum']        = to_numeric( scheme['fund_family_aum'] )
+
+    fund_schemes[idx]['num_crisil_rating']          = to_numeric( scheme['crisil_rating'] )
+
+    fund_schemes[idx]['num_latest_nav']             = to_numeric( scheme['latest_nav'] )
+    fund_schemes[idx]['num_1yr_return']             = to_numeric( scheme['1yr_return'] )
+    fund_schemes[idx]['num_scheme_aum']             = to_numeric( scheme['scheme_aum'] )
+
+    fund_schemes[idx]['num_scheme_min_investment']  = to_numeric( scheme['scheme_min_investment'] )
+    fund_schemes[idx]['num_scheme_last_dividend']   = to_numeric( scheme['scheme_last_dividend'] )
+    fund_schemes[idx]['num_scheme_bonus']           = to_numeric( scheme['scheme_bonus'] )
+
+    fund_schemes[idx]['num_fund_ret_1m']            = to_numeric( scheme['fund_ret_1m'] )
+    fund_schemes[idx]['num_fund_ret_3m']            = to_numeric( scheme['fund_ret_3m'] )
+    fund_schemes[idx]['num_fund_ret_6m']            = to_numeric( scheme['fund_ret_6m'] )
+    fund_schemes[idx]['num_fund_ret_1y']            = to_numeric( scheme['fund_ret_1y'] )
+    fund_schemes[idx]['num_fund_ret_2y']            = to_numeric( scheme['fund_ret_2y'] )
+    fund_schemes[idx]['num_fund_ret_3y']            = to_numeric( scheme['fund_ret_3y'] )
+    fund_schemes[idx]['num_fund_ret_5y']            = to_numeric( scheme['fund_ret_5y'] )
+
+    fund_schemes[idx]['num_cat_avg_ret_1m']         = to_numeric( scheme['cat_avg_ret_1m'] )
+    fund_schemes[idx]['num_cat_avg_ret_3m']         = to_numeric( scheme['cat_avg_ret_3m'] )
+    fund_schemes[idx]['num_cat_avg_ret_6m']         = to_numeric( scheme['cat_avg_ret_6m'] )
+    fund_schemes[idx]['num_cat_avg_ret_1y']         = to_numeric( scheme['cat_avg_ret_1y'] )
+    fund_schemes[idx]['num_cat_avg_ret_2y']         = to_numeric( scheme['cat_avg_ret_2y'] )
+    fund_schemes[idx]['num_cat_avg_ret_3y']         = to_numeric( scheme['cat_avg_ret_3y'] )
+    fund_schemes[idx]['num_cat_avg_ret_5y']         = to_numeric( scheme['cat_avg_ret_5y'] )
+
+    fund_schemes[idx]['num_diff_fund_cat_1m']       = to_numeric( scheme['diff_fund_cat_1m'] )
+    fund_schemes[idx]['num_diff_fund_cat_3m']       = to_numeric( scheme['diff_fund_cat_3m'] )
+    fund_schemes[idx]['num_diff_fund_cat_6m']       = to_numeric( scheme['diff_fund_cat_6m'] )
+    fund_schemes[idx]['num_diff_fund_cat_1y']       = to_numeric( scheme['diff_fund_cat_1y'] )
+    fund_schemes[idx]['num_diff_fund_cat_2y']       = to_numeric( scheme['diff_fund_cat_2y'] )
+    fund_schemes[idx]['num_diff_fund_cat_3y']       = to_numeric( scheme['diff_fund_cat_3y'] )
+    fund_schemes[idx]['num_diff_fund_cat_5y']       = to_numeric( scheme['diff_fund_cat_5y'] )
+
+    fund_schemes[idx]['num_cat_best_1m']            = to_numeric( scheme['cat_best_1m'] )
+    fund_schemes[idx]['num_cat_best_3m']            = to_numeric( scheme['cat_best_3m'] )
+    fund_schemes[idx]['num_cat_best_6m']            = to_numeric( scheme['cat_best_6m'] )
+    fund_schemes[idx]['num_cat_best_1y']            = to_numeric( scheme['cat_best_1y'] )
+    fund_schemes[idx]['num_cat_best_2y']            = to_numeric( scheme['cat_best_2y'] )
+    fund_schemes[idx]['num_cat_best_3y']            = to_numeric( scheme['cat_best_3y'] )
+    fund_schemes[idx]['num_cat_best_5y']            = to_numeric( scheme['cat_best_5y'] )
+
+    fund_schemes[idx]['num_cat_worst_1m']           = to_numeric( scheme['cat_worst_1m'] )
+    fund_schemes[idx]['num_cat_worst_3m']           = to_numeric( scheme['cat_worst_3m'] )
+    fund_schemes[idx]['num_cat_worst_6m']           = to_numeric( scheme['cat_worst_6m'] )
+    fund_schemes[idx]['num_cat_worst_1y']           = to_numeric( scheme['cat_worst_1y'] )
+    fund_schemes[idx]['num_cat_worst_2y']           = to_numeric( scheme['cat_worst_2y'] )
+    fund_schemes[idx]['num_cat_worst_3y']           = to_numeric( scheme['cat_worst_3y'] )
+    fund_schemes[idx]['num_cat_worst_5y']           = to_numeric( scheme['cat_worst_5y'] )
+    
+    
+    ##
+    # Step 2: Calculate additional risk metrics - the fetched risk rating is based on MPT Statistics
+    # which is already a sound measurement. Hence, we devise and incorporate more measures such as:
+    ##    
+    
+    # Initialize a list of normalized scores
+    normal_scores = []
+    
+    # Score between 0 and 1 based on Risk Rating which is based on MPT Statistics
+    fund_schemes[idx]['cstm_mtrc_risk_rating'] = fund_schemes[idx]['num_scheme_risk'] / 5.0
+    normal_scores.append( fund_schemes[idx]['cstm_mtrc_risk_rating'] )
+    
+    
+    # Score between 0 and 1 based on CRISIL rating
+    fund_schemes[idx]['cstm_mtrc_crisil'] = fund_schemes[idx]['num_crisil_rating'] / 5.0 if fund_schemes[idx]['num_crisil_rating'] else 0
+    normal_scores.append( fund_schemes[idx]['cstm_mtrc_crisil'] )
+    
+    # Score between 0 and 1 based on fund performance relative to category performance
+    fund_schemes[idx]['cstm_mtrc_diff_1m'] = 1 if fund_schemes[idx]['num_diff_fund_cat_1m'] and fund_schemes[idx]['num_diff_fund_cat_1m'] > 0 else 0
+    fund_schemes[idx]['cstm_mtrc_diff_3m'] = 1 if fund_schemes[idx]['num_diff_fund_cat_3m'] and fund_schemes[idx]['num_diff_fund_cat_3m'] > 0 else 0
+    fund_schemes[idx]['cstm_mtrc_diff_6m'] = 1 if fund_schemes[idx]['num_diff_fund_cat_6m'] and fund_schemes[idx]['num_diff_fund_cat_6m'] > 0 else 0
+    fund_schemes[idx]['cstm_mtrc_diff_1y'] = 1 if fund_schemes[idx]['num_diff_fund_cat_1y'] and fund_schemes[idx]['num_diff_fund_cat_1y'] > 0 else 0
+    fund_schemes[idx]['cstm_mtrc_diff_2y'] = 1 if fund_schemes[idx]['num_diff_fund_cat_2y'] and fund_schemes[idx]['num_diff_fund_cat_2y'] > 0 else 0
+    fund_schemes[idx]['cstm_mtrc_diff_3y'] = 1 if fund_schemes[idx]['num_diff_fund_cat_3y'] and fund_schemes[idx]['num_diff_fund_cat_3y'] > 0 else 0
+    fund_schemes[idx]['cstm_mtrc_diff_5y'] = 1 if fund_schemes[idx]['num_diff_fund_cat_5y'] and fund_schemes[idx]['num_diff_fund_cat_5y'] > 0 else 0
+    
+    normal_scores.append( fund_schemes[idx]['cstm_mtrc_diff_1m'] )
+    normal_scores.append( fund_schemes[idx]['cstm_mtrc_diff_3m'] )
+    normal_scores.append( fund_schemes[idx]['cstm_mtrc_diff_6m'] )
+    normal_scores.append( fund_schemes[idx]['cstm_mtrc_diff_1y'] )
+    normal_scores.append( fund_schemes[idx]['cstm_mtrc_diff_2y'] )
+    normal_scores.append( fund_schemes[idx]['cstm_mtrc_diff_3y'] )
+    normal_scores.append( fund_schemes[idx]['cstm_mtrc_diff_5y'] )
+    
+    
+    # Score between 0 and 1 based on volatility in fund's category
+    fund_schemes[idx]['cstm_mtrc_volat_1m']  = float( fund_schemes[idx]['num_cat_worst_1m'] ) / fund_schemes[idx]['num_cat_best_1m'] if fund_schemes[idx]['num_cat_worst_1m'] and fund_schemes[idx]['num_cat_worst_1m'] >= 0 else 0
+    fund_schemes[idx]['cstm_mtrc_volat_3m']  = float( fund_schemes[idx]['num_cat_worst_3m'] ) / fund_schemes[idx]['num_cat_best_3m'] if fund_schemes[idx]['num_cat_worst_3m'] and fund_schemes[idx]['num_cat_worst_3m'] >= 0 else 0
+    fund_schemes[idx]['cstm_mtrc_volat_6m']  = float( fund_schemes[idx]['num_cat_worst_6m'] ) / fund_schemes[idx]['num_cat_best_6m'] if fund_schemes[idx]['num_cat_worst_6m'] and fund_schemes[idx]['num_cat_worst_6m'] >= 0 else 0
+    fund_schemes[idx]['cstm_mtrc_volat_1y']  = float( fund_schemes[idx]['num_cat_worst_1y'] ) / fund_schemes[idx]['num_cat_best_1y'] if fund_schemes[idx]['num_cat_worst_1y'] and fund_schemes[idx]['num_cat_worst_1y'] >= 0 else 0
+    fund_schemes[idx]['cstm_mtrc_volat_2y']  = float( fund_schemes[idx]['num_cat_worst_2y'] ) / fund_schemes[idx]['num_cat_best_2y'] if fund_schemes[idx]['num_cat_worst_2y'] and fund_schemes[idx]['num_cat_worst_2y'] >= 0 else 0
+    fund_schemes[idx]['cstm_mtrc_volat_3y']  = float( fund_schemes[idx]['num_cat_worst_3y'] ) / fund_schemes[idx]['num_cat_best_3y'] if fund_schemes[idx]['num_cat_worst_3y'] and fund_schemes[idx]['num_cat_worst_3y'] >= 0 else 0
+    fund_schemes[idx]['cstm_mtrc_volat_5y']  = float( fund_schemes[idx]['num_cat_worst_5y'] ) / fund_schemes[idx]['num_cat_best_5y'] if fund_schemes[idx]['num_cat_worst_5y'] and fund_schemes[idx]['num_cat_worst_5y'] >= 0 else 0
+    
+    normal_scores.append( fund_schemes[idx]['cstm_mtrc_volat_1m'] )
+    normal_scores.append( fund_schemes[idx]['cstm_mtrc_volat_3m'] )
+    normal_scores.append( fund_schemes[idx]['cstm_mtrc_volat_6m'] )
+    normal_scores.append( fund_schemes[idx]['cstm_mtrc_volat_1y'] )
+    normal_scores.append( fund_schemes[idx]['cstm_mtrc_volat_2y'] )
+    normal_scores.append( fund_schemes[idx]['cstm_mtrc_volat_3y'] )
+    normal_scores.append( fund_schemes[idx]['cstm_mtrc_volat_5y'] )
+    
+    # Average score between 0 and 1, to be rounded off and used as a label
+    fund_schemes[idx]['calculated_label'] = round( float( sum(normal_scores) ) / max( len( normal_scores ), 1 ) )
+    
+    # print( scheme['fund_family_aum'], fund_schemes[idx]['fund_family_aum'],  to_numeric( scheme['fund_family_aum'] ) )
+    # print( normal_scores, fund_schemes[idx]['cstm_mtrc_diff_1m'], fund_schemes[idx]['cstm_mtrc_crisil'], to_numeric( scheme['crisil_rating'] ) )
+    # print( idx, scheme['scheme_name'], float( sum(normal_scores) ), max( len( normal_scores ), 1 ), scheme['calculated_label'] )
