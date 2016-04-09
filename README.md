@@ -56,8 +56,8 @@ The source data is collected and stored as CSVs. The fund family and fund scheme
   a. The first line represents the titles of columns in a ;-delimited file
   b. There are blank lines that have to be ignored
   c. There are lines with only text, and no ;-delimited values, which may represent either mutual fund scheme's type or the name of a fund family
-    c.1. If a single line of text is encountered before a line containing ;-delimited values it is to be interpreted as the fund family name for all funds until next such line is encountered
-    c.2. If two lines of text are encountered before a line containing ;-delimited values, then the first line is to be interpreted as scheme type and the second line as the fund family name for all funds until next such line is encountered
+      * If a single line of text is encountered before a line containing ;-delimited values it is to be interpreted as the fund family name for all funds until next such line is encountered
+      * If two lines of text are encountered before a line containing ;-delimited values, then the first line is to be interpreted as scheme type and the second line as the fund family name for all funds until next such line is encountered
   d. Create extra fields for better representation of data to join with other dataset - namely, scheme classification, type, category, fund family, ID and a short name. All of these are derived from composite data appearing in a single field.
   
 2. While scraping MoneyControl data, we:
