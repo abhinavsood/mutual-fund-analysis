@@ -7,7 +7,16 @@ from bs4 import BeautifulSoup
 import requests
 import sys
 import re
-
+import numpy as np
+import pandas as pd
+import sklearn
+import sklearn.cross_validation
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.cross_validation import cross_val_score
+%matplotlib inline
+import matplotlib
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 '''
@@ -26,7 +35,6 @@ def encode_risk(risk_text):
         return risk[ unicode( risk_text.upper() ) ]
     except:
         return 0
-
 
 '''
 Method to convert numerical features that appear as strings or unicode strings into numbers
@@ -136,8 +144,6 @@ for fund in fund_families:
         fund_schemes.append( fscheme_dict )
 
 
-# Scrape useful data such as Riskometer Rating (Risk Classification),
-# relative and absolute returns and benchmark information for each scheme
 for idx, scheme in enumerate(fund_schemes):
     # Read the page at the URL for each scheme
     markup = requests.get( scheme['scheme_url'] ).text
@@ -314,7 +320,8 @@ for idx, scheme in enumerate( fund_schemes ):
     
     ##
     # Step 2: Calculate additional risk metrics - the fetched risk rating is based on MPT Statistics
-    # which is already a sound measurement. Hence, we devise and incorporate more measures such as:
+    #         which is already a sound measurement. Hence, we devise and incorporate more measures
+    #         such as:
     ##
     
     # Score between 0 and 1 based on Risk Rating which is based on MPT Statistics
@@ -406,6 +413,7 @@ for idx, scheme in enumerate( fund_schemes ):
     
     ##
     # Calculate labels for each time frame based on calculated metrics
+    ## 
     ##
     labels_1m = round( float( sum(normal_scores_1m ) ) / max( len( normal_scores_1m ), 1 ) )
     labels_3m = round( float( sum(normal_scores_3m ) ) / max( len( normal_scores_3m ), 1 ) )
@@ -424,3 +432,663 @@ for idx, scheme in enumerate( fund_schemes ):
     fund_schemes[idx]['calculated_label_3y'] = labels_3y
     fund_schemes[idx]['calculated_label_5y'] = labels_5y
 
+
+
+##
+# Create target values for each time frame
+##
+Y_1m = np.array( [scheme['calculated_label_1m'] for scheme in fund_schemes] )
+Y_3m = np.array( [scheme['calculated_label_3m'] for scheme in fund_schemes] )
+Y_6m = np.array( [scheme['calculated_label_6m'] for scheme in fund_schemes] )
+Y_1y = np.array( [scheme['calculated_label_1y'] for scheme in fund_schemes] )
+Y_2y = np.array( [scheme['calculated_label_2y'] for scheme in fund_schemes] )
+Y_3y = np.array( [scheme['calculated_label_3y'] for scheme in fund_schemes] )
+Y_5y = np.array( [scheme['calculated_label_5y'] for scheme in fund_schemes] )
+
+
+##
+# Create feature vectors for each time frame
+##
+X_1m = np.array(
+    [
+        [
+            scheme['num_scheme_risk']           if scheme['num_scheme_risk'] else 0,
+            scheme['num_crisil_rating']         if scheme['num_crisil_rating'] else 0,
+            scheme['num_fund_family_aum']       if scheme['num_fund_family_aum'] else 0,
+            scheme['num_scheme_aum']            if scheme['num_scheme_aum'] else 0,
+            scheme['num_latest_nav']            if scheme['num_latest_nav'] else 0,
+            scheme['num_scheme_min_investment'] if scheme['num_scheme_min_investment'] else 0,
+            scheme['num_scheme_last_dividend']  if scheme['num_scheme_last_dividend'] else 0,
+            scheme['num_scheme_bonus']          if scheme['num_scheme_bonus'] else 0,
+            scheme['num_fund_ret_1m']           if scheme['num_fund_ret_1m'] else 0,
+            scheme['num_cat_avg_ret_1m']        if scheme['num_cat_avg_ret_1m'] else 0
+        ]
+        for scheme in fund_schemes
+    ]
+)
+
+X_3m = np.array(
+    [
+        [
+            scheme['num_scheme_risk']           if scheme['num_scheme_risk'] else 0,
+            scheme['num_crisil_rating']         if scheme['num_crisil_rating'] else 0,
+            scheme['num_fund_family_aum']       if scheme['num_fund_family_aum'] else 0,
+            scheme['num_scheme_aum']            if scheme['num_scheme_aum'] else 0,
+            scheme['num_latest_nav']            if scheme['num_latest_nav'] else 0,
+            scheme['num_scheme_min_investment'] if scheme['num_scheme_min_investment'] else 0,
+            scheme['num_scheme_last_dividend']  if scheme['num_scheme_last_dividend'] else 0,
+            scheme['num_scheme_bonus']          if scheme['num_scheme_bonus'] else 0,
+            scheme['num_fund_ret_1m']           if scheme['num_fund_ret_3m'] else 0,
+            scheme['num_cat_avg_ret_1m']        if scheme['num_cat_avg_ret_3m'] else 0
+        ]
+        for scheme in fund_schemes
+    ], dtype = 'float64'
+)
+
+X_6m = np.array(
+    [
+        [
+            scheme['num_scheme_risk']           if scheme['num_scheme_risk'] else 0,
+            scheme['num_crisil_rating']         if scheme['num_crisil_rating'] else 0,
+            scheme['num_fund_family_aum']       if scheme['num_fund_family_aum'] else 0,
+            scheme['num_scheme_aum']            if scheme['num_scheme_aum'] else 0,
+            scheme['num_latest_nav']            if scheme['num_latest_nav'] else 0,
+            scheme['num_scheme_min_investment'] if scheme['num_scheme_min_investment'] else 0,
+            scheme['num_scheme_last_dividend']  if scheme['num_scheme_last_dividend'] else 0,
+            scheme['num_scheme_bonus']          if scheme['num_scheme_bonus'] else 0,
+            scheme['num_fund_ret_1m']           if scheme['num_fund_ret_6m'] else 0,
+            scheme['num_cat_avg_ret_1m']        if scheme['num_cat_avg_ret_6m'] else 0
+        ]
+        for scheme in fund_schemes
+    ], dtype = 'float64'
+)
+
+X_1y = np.array(
+    [
+        [
+            scheme['num_scheme_risk']           if scheme['num_scheme_risk'] else 0,
+            scheme['num_crisil_rating']         if scheme['num_crisil_rating'] else 0,
+            scheme['num_fund_family_aum']       if scheme['num_fund_family_aum'] else 0,
+            scheme['num_scheme_aum']            if scheme['num_scheme_aum'] else 0,
+            scheme['num_latest_nav']            if scheme['num_latest_nav'] else 0,
+            scheme['num_scheme_min_investment'] if scheme['num_scheme_min_investment'] else 0,
+            scheme['num_scheme_last_dividend']  if scheme['num_scheme_last_dividend'] else 0,
+            scheme['num_scheme_bonus']          if scheme['num_scheme_bonus'] else 0,
+            scheme['num_fund_ret_1m']           if scheme['num_fund_ret_1y'] else 0,
+            scheme['num_cat_avg_ret_1m']        if scheme['num_cat_avg_ret_1y'] else 0
+        ]
+        for scheme in fund_schemes
+    ], dtype = 'float64'
+)
+
+X_2y = np.array(
+    [
+        [
+            scheme['num_scheme_risk']           if scheme['num_scheme_risk'] else 0,
+            scheme['num_crisil_rating']         if scheme['num_crisil_rating'] else 0,
+            scheme['num_fund_family_aum']       if scheme['num_fund_family_aum'] else 0,
+            scheme['num_scheme_aum']            if scheme['num_scheme_aum'] else 0,
+            scheme['num_latest_nav']            if scheme['num_latest_nav'] else 0,
+            scheme['num_scheme_min_investment'] if scheme['num_scheme_min_investment'] else 0,
+            scheme['num_scheme_last_dividend']  if scheme['num_scheme_last_dividend'] else 0,
+            scheme['num_scheme_bonus']          if scheme['num_scheme_bonus'] else 0,
+            scheme['num_fund_ret_1m']           if scheme['num_fund_ret_2y'] else 0,
+            scheme['num_cat_avg_ret_1m']        if scheme['num_cat_avg_ret_2y'] else 0
+        ]
+        for scheme in fund_schemes
+    ], dtype = 'float64'
+)
+
+X_3y = np.array(
+    [
+        [
+            scheme['num_scheme_risk']           if scheme['num_scheme_risk'] else 0,
+            scheme['num_crisil_rating']         if scheme['num_crisil_rating'] else 0,
+            scheme['num_fund_family_aum']       if scheme['num_fund_family_aum'] else 0,
+            scheme['num_scheme_aum']            if scheme['num_scheme_aum'] else 0,
+            scheme['num_latest_nav']            if scheme['num_latest_nav'] else 0,
+            scheme['num_scheme_min_investment'] if scheme['num_scheme_min_investment'] else 0,
+            scheme['num_scheme_last_dividend']  if scheme['num_scheme_last_dividend'] else 0,
+            scheme['num_scheme_bonus']          if scheme['num_scheme_bonus'] else 0,
+            scheme['num_fund_ret_1m']           if scheme['num_fund_ret_3y'] else 0,
+            scheme['num_cat_avg_ret_1m']        if scheme['num_cat_avg_ret_3y'] else 0
+        ]
+        for scheme in fund_schemes
+    ], dtype = 'float64'
+)
+
+X_5y = np.array(
+    [
+        [
+            scheme['num_scheme_risk']           if scheme['num_scheme_risk'] else 0,
+            scheme['num_crisil_rating']         if scheme['num_crisil_rating'] else 0,
+            scheme['num_fund_family_aum']       if scheme['num_fund_family_aum'] else 0,
+            scheme['num_scheme_aum']            if scheme['num_scheme_aum'] else 0,
+            scheme['num_latest_nav']            if scheme['num_latest_nav'] else 0,
+            scheme['num_scheme_min_investment'] if scheme['num_scheme_min_investment'] else 0,
+            scheme['num_scheme_last_dividend']  if scheme['num_scheme_last_dividend'] else 0,
+            scheme['num_scheme_bonus']          if scheme['num_scheme_bonus'] else 0,
+            scheme['num_fund_ret_1m']           if scheme['num_fund_ret_5y'] else 0,
+            scheme['num_cat_avg_ret_1m']        if scheme['num_cat_avg_ret_5y'] else 0
+        ]
+        for scheme in fund_schemes
+    ], dtype = 'float64'
+)
+
+
+
+# Handle NaNs using an Imputer
+from sklearn.preprocessing import Imputer
+
+imp = Imputer(missing_values='NaN', strategy='mean', axis=0)
+
+X_1m = imp.fit_transform( X_1m )
+X_3m = imp.fit_transform( X_3m )
+X_6m = imp.fit_transform( X_6m )
+X_1y = imp.fit_transform( X_1y )
+X_2y = imp.fit_transform( X_2y )
+X_3y = imp.fit_transform( X_3y )
+X_5y = imp.fit_transform( X_5y )
+
+
+
+
+# Use Random forest classifer and cross validation for number of trees ranging from 1 to 30
+# to find out which trees gives more accuracy.
+
+num_trees = range(1, 41)
+
+# Define folds = N for N-fold cross-validation
+num_folds = 10
+
+# Define a DF to store cross validation results
+df_rf_1m = pd.DataFrame()
+df_rf_3m = pd.DataFrame()
+df_rf_6m = pd.DataFrame()
+df_rf_1y = pd.DataFrame()
+df_rf_2y = pd.DataFrame()
+df_rf_3y = pd.DataFrame()
+df_rf_5y = pd.DataFrame()
+
+df_rf_1m['num_trees'] = [0]  * len( num_trees )
+df_rf_1m['scores']    = [[]] * len( num_trees )
+
+df_rf_3m['num_trees'] = [0]  * len( num_trees )
+df_rf_3m['scores']    = [[]] * len( num_trees )
+
+df_rf_6m['num_trees'] = [0]  * len( num_trees )
+df_rf_6m['scores']    = [[]] * len( num_trees )
+
+df_rf_1y['num_trees'] = [0]  * len( num_trees )
+df_rf_1y['scores']    = [[]] * len( num_trees )
+
+df_rf_2y['num_trees'] = [0]  * len( num_trees )
+df_rf_2y['scores']    = [[]] * len( num_trees )
+
+df_rf_3y['num_trees'] = [0]  * len( num_trees )
+df_rf_3y['scores']    = [[]] * len( num_trees )
+
+df_rf_5y['num_trees'] = [0]  * len( num_trees )
+df_rf_5y['scores']    = [[]] * len( num_trees )
+
+# compute score for various number of trees using RandomForestClassifier for each time frame.
+for num in num_trees:    
+    forest = sklearn.ensemble.RandomForestClassifier(n_estimators = num)
+    
+    scores_1m = sklearn.cross_validation.cross_val_score(forest, X_1m[:1000, :], Y_1m[:1000], scoring = 'f1', cv = num_folds)
+    scores_3m = sklearn.cross_validation.cross_val_score(forest, X_3m[:1000, :], Y_3m[:1000], scoring = 'f1', cv = num_folds)
+    scores_6m = sklearn.cross_validation.cross_val_score(forest, X_6m[:1000, :], Y_6m[:1000], scoring = 'f1', cv = num_folds)
+    scores_1y = sklearn.cross_validation.cross_val_score(forest, X_1y[:1000, :], Y_1y[:1000], scoring = 'f1', cv = num_folds)
+    scores_2y = sklearn.cross_validation.cross_val_score(forest, X_2y[:1000, :], Y_2y[:1000], scoring = 'f1', cv = num_folds)
+    scores_3y = sklearn.cross_validation.cross_val_score(forest, X_3y[:1000, :], Y_3y[:1000], scoring = 'f1', cv = num_folds)
+    scores_5y = sklearn.cross_validation.cross_val_score(forest, X_5y[:1000, :], Y_5y[:1000], scoring = 'f1', cv = num_folds)
+    
+    df_rf_1m['num_trees'][ num - 1] = num
+    df_rf_3m['num_trees'][ num - 1] = num
+    df_rf_6m['num_trees'][ num - 1] = num
+    df_rf_1y['num_trees'][ num - 1] = num
+    df_rf_2y['num_trees'][ num - 1] = num
+    df_rf_3y['num_trees'][ num - 1] = num
+    df_rf_5y['num_trees'][ num - 1] = num
+    
+    df_rf_1m['scores'][ num - 1] = scores_1m
+    df_rf_3m['scores'][ num - 1] = scores_3m
+    df_rf_6m['scores'][ num - 1] = scores_6m
+    df_rf_1y['scores'][ num - 1] = scores_1y
+    df_rf_2y['scores'][ num - 1] = scores_2y
+    df_rf_3y['scores'][ num - 1] = scores_3y
+    df_rf_5y['scores'][ num - 1] = scores_5y
+
+
+# plot the scores of the random forests as a function of the number of trees
+plt.figure(figsize=(16,9))
+
+# Scores of 10-fold cross-validation for random forests ranging from 1 to 40 trees as a box plot
+sns.boxplot(data  = df_rf_1m.scores,
+            names = df_rf_1m.num_trees.values )
+
+plt.title(  "Number of trees vs Score: 1 month", fontsize=16)
+plt.xlabel( "Number of Trees", fontsize=14)
+plt.ylabel( "Scores", fontsize=14)
+plt.yticks( np.arange( 0.1, 1.2, 0.1 ) )
+sns.set_context('poster')
+
+
+
+# plot the scores of the random forests as a function of the number of trees
+plt.figure(figsize=(16,9))
+
+# Scores of 10-fold cross-validation for random forests ranging from 1 to 40 trees as a box plot
+sns.boxplot(data  = df_rf_3m.scores,
+            names = df_rf_3m.num_trees.values )
+
+plt.title(  "Number of trees vs Score: 3 month", fontsize=16)
+plt.xlabel( "Number of Trees", fontsize=14)
+plt.ylabel( "Scores", fontsize=14)
+plt.yticks( np.arange( 0.1, 1.2, 0.1 ) )
+sns.set_context('poster')
+
+
+
+
+# plot the scores of the random forests as a function of the number of trees
+plt.figure(figsize=(16,9))
+
+# Scores of 10-fold cross-validation for random forests ranging from 1 to 40 trees as a box plot
+sns.boxplot(data  = df_rf_6m.scores,
+            names = df_rf_6m.num_trees.values )
+
+plt.title(  "Number of trees vs Score: 6 month", fontsize=16)
+plt.xlabel( "Number of Trees", fontsize=14)
+plt.ylabel( "Scores", fontsize=14)
+plt.yticks( np.arange( 0.9, 1.0, 0.1 ) )
+sns.set_context('poster')
+
+
+
+# plot the scores of the random forests as a function of the number of trees
+plt.figure(figsize=(16,9))
+
+# Scores of 10-fold cross-validation for random forests ranging from 1 to 40 trees as a box plot
+sns.boxplot(data  = df_rf_1y.scores,
+            names = df_rf_1y.num_trees.values )
+
+plt.title(  "Number of trees vs Score: 1 year", fontsize=16)
+plt.xlabel( "Number of Trees", fontsize=14)
+plt.ylabel( "Scores", fontsize=14)
+plt.yticks( np.arange( 0.9, 1.0, 0.1 ) )
+sns.set_context('poster')
+
+
+
+
+# plot the scores of the random forests as a function of the number of trees
+plt.figure(figsize=(16,9))
+
+# Scores of 10-fold cross-validation for random forests ranging from 1 to 40 trees as a box plot
+sns.boxplot(data  = df_rf_2y.scores,
+            names = df_rf_2y.num_trees.values )
+
+plt.title(  "Number of trees vs Score: 2 year", fontsize=16)
+plt.xlabel( "Number of Trees", fontsize=14)
+plt.ylabel( "Scores", fontsize=14)
+plt.yticks( np.arange( 0.9, 1.0, 0.1 ) )
+sns.set_context('poster')
+
+
+
+
+
+
+# plot the scores of the random forests as a function of the number of trees
+plt.figure(figsize=(16,9))
+
+# Scores of 10-fold cross-validation for random forests ranging from 1 to 40 trees as a box plot
+sns.boxplot(data  = df_rf_3y.scores,
+            names = df_rf_3y.num_trees.values )
+
+plt.title(  "Number of trees vs Score: 3 year", fontsize=16)
+plt.xlabel( "Number of Trees", fontsize=14)
+plt.ylabel( "Scores", fontsize=14)
+plt.yticks( np.arange( 0.9, 1.0, 0.1 ) )
+sns.set_context('poster')
+
+
+
+
+# plot the scores of the random forests as a function of the number of trees
+plt.figure(figsize=(16,9))
+
+# Scores of 10-fold cross-validation for random forests ranging from 1 to 40 trees as a box plot
+sns.boxplot(data  = df_rf_5y.scores,
+            names = df_rf_5y.num_trees.values )
+
+plt.title(  "Number of trees vs Score: 5 year", fontsize=16)
+plt.xlabel( "Number of Trees", fontsize=14)
+plt.ylabel( "Scores", fontsize=14)
+plt.yticks( np.arange( 0.9, 1.0, 0.1 ) )
+sns.set_context('poster')
+
+
+
+
+
+
+
+##
+# 1 month:
+##
+# Train random forest classifier with the optimal 27 estimators
+## 
+clf_1m = sklearn.ensemble.RandomForestClassifier( n_estimators = 27)
+clf_1m = clf_1m.fit( X_1m[:1000, :], Y_1m[:1000] )
+
+##
+# 3 month:
+##
+# Train random forest classifier with the optimal 3 estimators
+## 
+clf_3m = sklearn.ensemble.RandomForestClassifier( n_estimators = 3)
+clf_3m = clf_3m.fit( X_3m[:1000, :], Y_3m[:1000] )
+
+##
+# 6 month:
+##
+# Train random forest classifier with the optimal 2 estimators
+## 
+clf_6m = sklearn.ensemble.RandomForestClassifier( n_estimators = 2)
+clf_6m = clf_6m.fit( X_6m[:1000, :], Y_6m[:1000] )
+
+##
+# 1 year:
+##
+# Train random forest classifier with the optimal 20 estimators
+## 
+clf_1y = sklearn.ensemble.RandomForestClassifier( n_estimators = 20)
+clf_1y = clf_1y.fit( X_1y[:1000, :], Y_1y[:1000] )
+
+##
+# 2 year:
+##
+# Train random forest classifier with the optimal 8 estimators
+## 
+clf_2y = sklearn.ensemble.RandomForestClassifier( n_estimators = 8)
+clf_2y = clf_2y.fit( X_2y[:1000, :], Y_2y[:1000] )
+
+##
+# 3 year:
+##
+# Train random forest classifier with the optimal 3 estimators
+## 
+clf_3y = sklearn.ensemble.RandomForestClassifier( n_estimators = 3)
+clf_3y = clf_3y.fit( X_3y[:1000, :], Y_3y[:1000] )
+
+##
+# 5 year:
+##
+# Train random forest classifier with the optimal 20 estimators
+## 
+clf_5y = sklearn.ensemble.RandomForestClassifier( n_estimators = 20)
+clf_5y = clf_5y.fit( X_5y[:1000, :], Y_5y[:1000] )
+
+
+
+# obtain the relative importance of the features 
+feature_imp_1m = clf_1m.feature_importances_
+feature_imp_3m = clf_3m.feature_importances_
+feature_imp_6m = clf_6m.feature_importances_
+feature_imp_1y = clf_1y.feature_importances_
+feature_imp_2y = clf_2y.feature_importances_
+feature_imp_3y = clf_3y.feature_importances_
+feature_imp_5y = clf_5y.feature_importances_
+
+#get column names
+columns = ['Scheme Risk',
+            'CRISIL Rating',
+            'Fund Family AUM',
+            'Scheme AUM',
+            'Latest NAV',
+            'Minimum Investment',
+            'Last Dividend',
+            'Bonus',
+            'Fund Return',
+            'Category Return'
+          ]
+
+# Diagnostics - Check relative importance of features
+print feature_imp_1m
+print feature_imp_3m
+print feature_imp_6m
+print feature_imp_1y
+print feature_imp_2y
+print feature_imp_3y
+print feature_imp_5y
+
+
+# Plot feature importances for each time frame
+index = np.arange( len(columns) - 2 )
+bar_width = 0.3
+opacity = 0.5
+
+
+
+
+
+
+# 1 month
+plt.figure( figsize = (16, 9) )
+plt.bar(index,
+        np.delete( feature_imp_1m, [6, 7]),
+        bar_width,
+        alpha=opacity,
+        color='b',
+        label='')
+
+plt.xlabel('Columns', fontsize =16)
+plt.ylabel('Feature Importance', fontsize =16)
+plt.title('Feature Importance for each column: 1 month', fontsize = 16)
+plt.xticks(index, np.delete(columns, [6,7]), rotation = 70)
+plt.show()
+
+
+
+
+
+
+# 3 month
+plt.figure( figsize = (16, 9) )
+plt.bar(index,
+        np.delete( feature_imp_3m, [6,7]),
+        bar_width,
+        alpha=opacity,
+        color='b',
+        label='')
+
+plt.xlabel('Columns', fontsize =16)
+plt.ylabel('Feature Importance', fontsize =16)
+plt.title('Feature Importance for each column: 3 month', fontsize = 16)
+plt.xticks(index, np.delete(columns, [6,7]), rotation = 70)
+plt.show()
+
+
+
+
+# 6 month
+plt.figure( figsize = (16, 9) )
+plt.bar(index,
+        np.delete( feature_imp_6m, [6,7]),
+        bar_width,
+        alpha=opacity,
+        color='b',
+        label='')
+
+plt.xlabel('Columns', fontsize =16)
+plt.ylabel('Feature Importance', fontsize =16)
+plt.title('Feature Importance for each column: 6 month', fontsize = 16)
+plt.xticks(index, np.delete(columns, [6,7]), rotation = 70)
+plt.show()
+
+
+
+
+# 1 year
+plt.figure( figsize = (16, 9) )
+plt.bar(index,
+        np.delete( feature_imp_1y, [6,7]),
+        bar_width,
+        alpha=opacity,
+        color='r',
+        label='')
+
+plt.xlabel('Columns', fontsize =16)
+plt.ylabel('Feature Importance', fontsize =16)
+plt.title('Feature Importance for each column: 1 year', fontsize = 16)
+plt.xticks(index, np.delete(columns, [6,7]), rotation = 70)
+plt.show()
+
+
+
+
+# 2 year
+plt.figure( figsize = (16, 9) )
+plt.bar(index,
+        np.delete( feature_imp_2y, [6,7]),
+        bar_width,
+        alpha=opacity,
+        color='b',
+        label='')
+
+plt.xlabel('Columns', fontsize =16)
+plt.ylabel('Feature Importance', fontsize =16)
+plt.title('Feature Importance for each column: 2 year', fontsize = 16)
+plt.xticks(index, np.delete(columns, [6,7]), rotation = 70)
+plt.show()
+
+
+
+# 3 year
+plt.figure( figsize = (16, 9) )
+plt.bar(index,
+        np.delete( feature_imp_3y, [6,7]),
+        bar_width,
+        alpha=opacity,
+        color='g',
+        label='')
+
+plt.xlabel('Columns', fontsize =16)
+plt.ylabel('Feature Importance', fontsize =16)
+plt.title('Feature Importance for each column: 3 year', fontsize = 16)
+plt.xticks(index, np.delete(columns, [6,7]), rotation = 70)
+plt.show()
+
+
+
+
+
+# 5 year
+plt.figure( figsize = (16, 9) )
+plt.bar(index,
+        np.delete( feature_imp_5y, [6,7]),
+        bar_width,
+        alpha=opacity,
+        color='c',
+        label='')
+
+plt.xlabel('Columns', fontsize =16)
+plt.ylabel('Feature Importance', fontsize =16)
+plt.title('Feature Importance for each column: 5 year', fontsize = 16)
+plt.xticks(index, np.delete(columns, [6,7]), rotation = 70)
+plt.show()
+
+
+
+
+##
+# Predict good and bad fund based on Random Forest Classification
+##
+Y_1m_predicted = clf_1m.predict( X_1m )
+Y_3m_predicted = clf_3m.predict( X_3m )
+Y_6m_predicted = clf_6m.predict( X_6m )
+Y_1y_predicted = clf_1y.predict( X_1y )
+Y_2y_predicted = clf_2y.predict( X_2y )
+Y_3y_predicted = clf_3y.predict( X_3y )
+Y_5y_predicted = clf_5y.predict( X_5y )
+
+
+##
+# Model Evaluation: Classification Score
+##
+clf_1m_score = clf_1m.score(X_1m[1000:, :], Y_1m[1000:], sample_weight=None)
+clf_3m_score = clf_3m.score(X_3m[1000:, :], Y_3m[1000:], sample_weight=None)
+clf_6m_score = clf_6m.score(X_6m[1000:, :], Y_6m[1000:], sample_weight=None)
+clf_1y_score = clf_1y.score(X_1y[1000:, :], Y_1y[1000:], sample_weight=None)
+clf_2y_score = clf_2y.score(X_2y[1000:, :], Y_2y[1000:], sample_weight=None)
+clf_3y_score = clf_3y.score(X_3y[1000:, :], Y_3y[1000:], sample_weight=None)
+clf_5y_score = clf_5y.score(X_5y[1000:, :], Y_5y[1000:], sample_weight=None)
+
+
+print('Timeframe: {0}\nScore: {1}\n'.format('1m', clf_1m_score) ) 
+print('Timeframe: {0}\nScore: {1}\n'.format('3m', clf_3m_score) ) 
+print('Timeframe: {0}\nScore: {1}\n'.format('6m', clf_6m_score) ) 
+print('Timeframe: {0}\nScore: {1}\n'.format('1y', clf_1y_score) ) 
+print('Timeframe: {0}\nScore: {1}\n'.format('2y', clf_2y_score) ) 
+print('Timeframe: {0}\nScore: {1}\n'.format('3y', clf_3y_score) ) 
+print('Timeframe: {0}\nScore: {1}\n'.format('5y', clf_5y_score) )
+
+
+
+## 
+# List of good funds for each time frame
+## 
+good_funds_1m = [ fund_schemes[k] for (k, v) in enumerate( Y_1m_predicted ) if v == 1.0 ]
+good_funds_3m = [ fund_schemes[k] for (k, v) in enumerate( Y_3m_predicted ) if v == 1.0 ]
+good_funds_6m = [ fund_schemes[k] for (k, v) in enumerate( Y_6m_predicted ) if v == 1.0 ]
+good_funds_1y = [ fund_schemes[k] for (k, v) in enumerate( Y_1y_predicted ) if v == 1.0 ]
+good_funds_2y = [ fund_schemes[k] for (k, v) in enumerate( Y_2y_predicted ) if v == 1.0 ]
+good_funds_3y = [ fund_schemes[k] for (k, v) in enumerate( Y_3y_predicted ) if v == 1.0 ]
+good_funds_5y = [ fund_schemes[k] for (k, v) in enumerate( Y_5y_predicted ) if v == 1.0 ]
+
+
+good_funds_1m_sort = [ [ fund['scheme_name'], fund[ 'num_fund_ret_1m' ], fund[ 'num_fund_ret_3m' ], fund[ 'num_fund_ret_6m' ], fund[ 'num_fund_ret_1y' ], fund[ 'num_fund_ret_2y' ], fund[ 'num_fund_ret_3y' ], fund[ 'num_fund_ret_5y' ], fund[ 'scheme_url' ] ] for fund in good_funds_1m]
+
+good_funds_3m_sort = [ [ fund['scheme_name'], fund[ 'num_fund_ret_1m' ], fund[ 'num_fund_ret_3m' ], fund[ 'num_fund_ret_6m' ], fund[ 'num_fund_ret_1y' ], fund[ 'num_fund_ret_2y' ], fund[ 'num_fund_ret_3y' ], fund[ 'num_fund_ret_5y' ], fund[ 'scheme_url' ] ] for fund in good_funds_3m]
+
+good_funds_6m_sort = [ [ fund['scheme_name'], fund[ 'num_fund_ret_1m' ], fund[ 'num_fund_ret_3m' ], fund[ 'num_fund_ret_6m' ], fund[ 'num_fund_ret_1y' ], fund[ 'num_fund_ret_2y' ], fund[ 'num_fund_ret_3y' ], fund[ 'num_fund_ret_5y' ], fund[ 'scheme_url' ] ] for fund in good_funds_6m]
+
+good_funds_1y_sort = [ [ fund['scheme_name'], fund[ 'num_fund_ret_1m' ], fund[ 'num_fund_ret_3m' ], fund[ 'num_fund_ret_6m' ], fund[ 'num_fund_ret_1y' ], fund[ 'num_fund_ret_2y' ], fund[ 'num_fund_ret_3y' ], fund[ 'num_fund_ret_5y' ], fund[ 'scheme_url' ] ] for fund in good_funds_1y]
+
+good_funds_2y_sort = [ [ fund['scheme_name'], fund[ 'num_fund_ret_1m' ], fund[ 'num_fund_ret_3m' ], fund[ 'num_fund_ret_6m' ], fund[ 'num_fund_ret_1y' ], fund[ 'num_fund_ret_2y' ], fund[ 'num_fund_ret_3y' ], fund[ 'num_fund_ret_5y' ], fund[ 'scheme_url' ] ] for fund in good_funds_2y]
+
+good_funds_3y_sort = [ [ fund['scheme_name'], fund[ 'num_fund_ret_1m' ], fund[ 'num_fund_ret_3m' ], fund[ 'num_fund_ret_6m' ], fund[ 'num_fund_ret_1y' ], fund[ 'num_fund_ret_2y' ], fund[ 'num_fund_ret_3y' ], fund[ 'num_fund_ret_5y' ], fund[ 'scheme_url' ] ] for fund in good_funds_3y]
+
+good_funds_5y_sort = [ [ fund['scheme_name'], fund[ 'num_fund_ret_1m' ], fund[ 'num_fund_ret_3m' ], fund[ 'num_fund_ret_6m' ], fund[ 'num_fund_ret_1y' ], fund[ 'num_fund_ret_2y' ], fund[ 'num_fund_ret_3y' ], fund[ 'num_fund_ret_5y' ], fund[ 'scheme_url' ] ] for fund in good_funds_5y]
+
+
+good_funds_1m_sort.sort(key = lambda x: x[1], reverse=True)
+good_funds_3m_sort.sort(key = lambda x: x[2], reverse=True)
+good_funds_6m_sort.sort(key = lambda x: x[3], reverse=True)
+good_funds_1y_sort.sort(key = lambda x: x[4], reverse=True)
+good_funds_2y_sort.sort(key = lambda x: x[5], reverse=True)
+good_funds_3y_sort.sort(key = lambda x: x[6], reverse=True)
+good_funds_5y_sort.sort(key = lambda x: x[7], reverse=True)
+
+print( '## Top 5 funds for a timeframe of 1 month:')
+print( good_funds_1m_sort[:5] )
+
+print( '## Top 5 funds for a timeframe of 3 months:')
+print( good_funds_3m_sort[:5] )
+
+print( '## Top 5 funds for a timeframe of 6 months:')
+print( good_funds_6m_sort[:5] )
+
+print( '## Top 5 funds for a timeframe of 1 year:')
+print( good_funds_1y_sort[:5] )
+
+print( '## Top 5 funds for a timeframe of 2 years:')
+print( good_funds_2y_sort[:5] )
+
+print( '## Top 5 funds for a timeframe of 3 years:')
+print( good_funds_3y_sort[:5] )
+
+print( '## Top 5 funds for a timeframe of 5 years:')
+print( good_funds_5y_sort[:5] )
